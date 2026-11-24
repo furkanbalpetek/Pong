@@ -16,6 +16,11 @@ public class Ball : MonoBehaviour
     public string resultTitle = "";
     public string resultSub = "";
 
+    // Juice listens to these
+    public System.Action<Vector2, bool> onHit;      // position, hitPaddle
+    public System.Action<Vector2, bool> onScore;    // position, leftScored
+    public System.Action<bool> onWin;               // leftWon
+
     Rigidbody2D rb;
     AudioSource audioSource;
     AudioClip paddleClip, wallClip, scoreClip, winClip;
@@ -69,6 +74,7 @@ public class Ball : MonoBehaviour
         rb.linearVelocity = Vector2.zero;
         transform.position = Vector3.zero;
         Play(winClip);
+        if (onWin != null) onWin(leftWon);
 
         if (GameSettings.singlePlayer)
         {
@@ -107,10 +113,12 @@ public class Ball : MonoBehaviour
             rb.linearVelocity = new Vector2(dirX, offset * 0.8f).normalized * newSpeed;
 
             Play(paddleClip);
+            if (onHit != null) onHit(collision.GetContact(0).point, true);
         }
         else
         {
             Play(wallClip);
+            if (onHit != null) onHit(collision.GetContact(0).point, false);
         }
     }
 
@@ -144,12 +152,14 @@ public class Ball : MonoBehaviour
         if (transform.position.x > 9.5f)
         {
             scoreLeft++;
+            if (onScore != null) onScore(transform.position, true);
             if (scoreLeft >= winScore) EndGame();
             else { Play(scoreClip); Launch(); }
         }
         else if (transform.position.x < -9.5f)
         {
             scoreRight++;
+            if (onScore != null) onScore(transform.position, false);
             if (scoreRight >= winScore) EndGame();
             else { Play(scoreClip); Launch(); }
         }

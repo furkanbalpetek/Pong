@@ -41,9 +41,23 @@ public class GameUI : MonoBehaviour
         }
 
         // Scoreboard canvas: drawn BEHIND the ball and paddles (above the table)
-        boardRoot = MakeCanvas("BoardCanvas", -5, true);
+        boardRoot = MakeCanvas("BoardCanvas", 1, true);
         // End screen canvas: drawn on top of everything
-        endRoot = MakeCanvas("EndCanvas", 50, false);
+        endRoot = MakeCanvas("EndCanvas", 50, true);
+
+        if (GetComponent<Juice>() == null) gameObject.AddComponent<Juice>();
+
+        // Put ball, paddles and the ball trail clearly above the scoreboard
+        foreach (SpriteRenderer sr in FindObjectsByType<SpriteRenderer>(FindObjectsSortMode.None))
+        {
+            string n = sr.gameObject.name;
+            if (n == "Ball" || n == "PaddleLeft" || n == "PaddleRight") sr.sortingOrder = 10;
+        }
+        if (ball != null)
+        {
+            TrailRenderer tr = ball.GetComponent<TrailRenderer>();
+            if (tr != null) tr.sortingOrder = 10;
+        }
 
         BuildBoard();
         BuildEndPanel();
@@ -91,10 +105,11 @@ public class GameUI : MonoBehaviour
     {
         GameObject go = new GameObject(canvasName, typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
         Canvas c = go.GetComponent<Canvas>();
-        if (behindBall && Camera.main != null)
+        Camera cam = Camera.main != null ? Camera.main : FindAnyObjectByType<Camera>();
+        if (behindBall && cam != null)
         {
             c.renderMode = RenderMode.ScreenSpaceCamera;
-            c.worldCamera = Camera.main;
+            c.worldCamera = cam;
             c.planeDistance = 10f;
         }
         else
