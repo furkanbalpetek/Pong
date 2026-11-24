@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-using TMPro;
 
 public class Ball : MonoBehaviour
 {
@@ -8,15 +7,18 @@ public class Ball : MonoBehaviour
     public float speedIncrease = 0.4f;
     public float maxSpeed = 15f;
     public int winScore = 5;
-    public TMP_Text scoreText;
-    public TMP_Text messageText;
+
+    // GameUI reads these
+    public int scoreLeft;
+    public int scoreRight;
+    public bool gameOver;
+    public bool leftWon;
+    public string resultTitle = "";
+    public string resultSub = "";
 
     Rigidbody2D rb;
     AudioSource audioSource;
     AudioClip paddleClip, wallClip, scoreClip, winClip;
-    int scoreLeft;
-    int scoreRight;
-    bool gameOver;
 
     void Start()
     {
@@ -38,100 +40,116 @@ public class Ball : MonoBehaviour
         if (clip != null) audioSource.PlayOneShot(clip);
     }
 
-    void StartNewGame()
+    public void StartNewGame()
     {
         scoreLeft = 0;
         scoreRight = 0;
         gameOver = false;
-        if (messageText != null) messageText.text = "";
-        UpdateScoreText();
+        resultTitle = "";
+        resultSub = "";
         Launch();
     }
 
     void Launch()
-{
-    transform.position = Vector3.zero;
-    float dirX = Random.value < 0.5f ? -1f : 1f;
-    float dirY = Random.Range(0.2f, 0.5f) * (Random.value < 0.5f ? -1f : 1f);
-    rb.linearVelocity = new Vector2(dirX, dirY).normalized * startSpeed;
-}
-
-    void UpdateScoreText()
     {
-        if (scoreText != null)
-            scoreText.text = scoreLeft + " - " + scoreRight;
+        transform.position = Vector3.zero;
+
+        TrailRenderer tr = GetComponent<TrailRenderer>();
+        if (tr != null) tr.Clear();
+
+        float dirX = Random.value < 0.5f ? -1f : 1f;
+        float dirY = Random.Range(0.2f, 0.5f) * (Random.value < 0.5f ? -1f : 1f);
+        rb.linearVelocity = new Vector2(dirX, dirY).normalized * startSpeed;
     }
 
     void EndGame()
     {
         gameOver = true;
+        leftWon = scoreLeft > scoreRight;
         rb.linearVelocity = Vector2.zero;
         transform.position = Vector3.zero;
         Play(winClip);
-        string winner = scoreLeft > scoreRight ? "SOL OYUNCU" : "SAG OYUNCU";
-        if (messageText != null)
-            messageText.text = winner + " KAZANDI!\nTEKRAR ICIN SPACE";
+
+        if (GameSettings.singlePlayer)
+        {
+            if (leftWon)
+            {
+                GameSettings.MarkBeaten(GameSettings.aiLevel);
+                resultTitle = "YOU WIN!";
+                resultSub = "LEVEL " + GameSettings.aiLevel + " CLEARED";
+            }
+            else
+            {
+                resultTitle = "YOU LOSE";
+                resultSub = "THE COMPUTER WINS";
+            }
+        }
+        else
+        {
+            resultTitle = leftWon ? "LEFT PLAYER WINS!" : "RIGHT PLAYER WINS!";
+            resultSub = "";
+        }
     }
 
-  void OnCollisionEnter2D(Collision2D collision)
-{
-    if (collision.gameObject.GetComponent<Paddle>() != null)
+    void OnCollisionEnter2D(Collision2D collision)
     {
-        float newSpeed = Mathf.Min(rb.linearVelocity.magnitude + speedIncrease, maxSpeed);
+        if (collision.gameObject.GetComponent<Paddle>() != null)
+        {
+            float newSpeed = Mathf.Min(rb.linearVelocity.magnitude + speedIncrease, maxSpeed);
 
-        float half = collision.collider.bounds.extents.y;
-        float offset = (transform.position.y - collision.transform.position.y) / half;
-        offset = Mathf.Clamp(offset, -1f, 1f);
-        if (Mathf.Abs(offset) < 0.15f)
-            offset = 0.15f * (Random.value < 0.5f ? -1f : 1f);
+            float half = collision.collider.bounds.extents.y;
+            float offset = (transform.position.y - collision.transform.position.y) / half;
+            offset = Mathf.Clamp(offset, -1f, 1f);
+            if (Mathf.Abs(offset) < 0.15f)
+                offset = 0.15f * (Random.value < 0.5f ? -1f : 1f);
 
-        float dirX = transform.position.x > collision.transform.position.x ? 1f : -1f;
-        rb.linearVelocity = new Vector2(dirX, offset * 0.8f).normalized * newSpeed;
+            float dirX = transform.position.x > collision.transform.position.x ? 1f : -1f;
+            rb.linearVelocity = new Vector2(dirX, offset * 0.8f).normalized * newSpeed;
 
-        Play(paddleClip);
+            Play(paddleClip);
+        }
+        else
+        {
+            Play(wallClip);
+        }
     }
-    else
-    {
-        Play(wallClip);
-    }
-}
 
     void KeepAngle()
-{
-    Vector2 v = rb.linearVelocity;
-    float speed = v.magnitude;
-    if (speed < 0.01f) return;
-
-    float minY = speed * 0.15f;
-    if (Mathf.Abs(v.y) < minY)
     {
-        float newY = (v.y >= 0f ? 1f : -1f) * minY;
-        rb.linearVelocity = new Vector2(v.x, newY).normalized * speed;
-    }
-}
+        Vector2 v = rb.linearVelocity;
+        float speed = v.magnitude;
+        if (speed < 0.01f) return;
 
+        float minY = speed * 0.15f;
+        if (Mathf.Abs(v.y) < minY)
+        {
+            float newY = (v.y >= 0f ? 1f : -1f) * minY;
+            rb.linearVelocity = new Vector2(v.x, newY).normalized * speed;
+        }
+    }
 
     void Update()
     {
+        if (Time.timeScale == 0f) return;
+
         if (gameOver)
         {
             if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
                 StartNewGame();
             return;
         }
-          KeepAngle();
+
+        KeepAngle();
 
         if (transform.position.x > 9.5f)
         {
             scoreLeft++;
-            UpdateScoreText();
             if (scoreLeft >= winScore) EndGame();
             else { Play(scoreClip); Launch(); }
         }
         else if (transform.position.x < -9.5f)
         {
             scoreRight++;
-            UpdateScoreText();
             if (scoreRight >= winScore) EndGame();
             else { Play(scoreClip); Launch(); }
         }

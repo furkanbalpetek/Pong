@@ -6,22 +6,33 @@ public class Paddle : MonoBehaviour
     public float speed = 8f;
     public bool isLeft = true;
 
-    [Header("Yapay zeka (sadece sag raket icin)")]
+    [Header("Yapay zeka")]
     public bool aiControlled = false;
     public Transform ball;
     public float aiSpeed = 5f;
+    public float aiDeadzone = 0.3f;
+
+    void Start()
+    {
+        if (ball == null)
+        {
+            GameObject b = GameObject.Find("Ball");
+            if (b != null) ball = b.transform;
+        }
+    }
+
+    public void SetAI(bool on, int level)
+    {
+        aiControlled = on;
+        float t = Mathf.Clamp01((level - 1) / 9f);
+        aiSpeed = Mathf.Lerp(2.5f, 8.5f, t);
+        aiDeadzone = Mathf.Lerp(0.9f, 0.2f, t);
+    }
 
     void Update()
     {
-        var kb = Keyboard.current;
+        Keyboard kb = Keyboard.current;
         if (kb == null) return;
-
-        // Sag raketteyken 1 = tek kisilik (AI), 2 = iki kisilik
-        if (!isLeft)
-        {
-            if (kb.digit1Key.wasPressedThisFrame) aiControlled = true;
-            if (kb.digit2Key.wasPressedThisFrame) aiControlled = false;
-        }
 
         float move = 0f;
         float currentSpeed = speed;
@@ -29,7 +40,7 @@ public class Paddle : MonoBehaviour
         if (aiControlled && ball != null)
         {
             float diff = ball.position.y - transform.position.y;
-            if (Mathf.Abs(diff) > 0.3f)
+            if (Mathf.Abs(diff) > aiDeadzone)
             {
                 move = Mathf.Sign(diff);
                 currentSpeed = aiSpeed;
