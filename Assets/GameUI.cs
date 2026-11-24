@@ -42,9 +42,8 @@ public class GameUI : MonoBehaviour
             if (g != null) g.SetActive(false);
         }
 
-        // Keep the playfield 16:9 on every screen so paddles are never cropped
+        // Zoom the camera out on narrow screens so the paddles are never cropped
         gameCam = Camera.main != null ? Camera.main : FindAnyObjectByType<Camera>();
-        CreateLetterboxCamera();
         FitCamera();
 
         // Scoreboard canvas: drawn BEHIND the ball and paddles (above the table)
@@ -110,37 +109,17 @@ public class GameUI : MonoBehaviour
         }
     }
 
-    void CreateLetterboxCamera()
-    {
-        // Black background behind the 16:9 playfield (fills the bars)
-        GameObject go = new GameObject("LetterboxCamera");
-        Camera c = go.AddComponent<Camera>();
-        c.clearFlags = CameraClearFlags.SolidColor;
-        c.backgroundColor = Color.black;
-        c.cullingMask = 0;
-        c.depth = -100f;
-    }
-
     void FitCamera()
     {
         lastSw = Screen.width;
         lastSh = Screen.height;
         if (gameCam == null || lastSh == 0) return;
 
-        float target = 16f / 9f;
-        float window = (float)lastSw / lastSh;
-        Rect r;
-        if (window < target)
-        {
-            float h = window / target;
-            r = new Rect(0f, (1f - h) / 2f, 1f, h);
-        }
-        else
-        {
-            float w = target / window;
-            r = new Rect((1f - w) / 2f, 0f, w, 1f);
-        }
-        gameCam.rect = r;
+        gameCam.rect = new Rect(0f, 0f, 1f, 1f);
+
+        // Paddles sit at x = +-8, so keep at least 8.9 units visible on each side
+        float aspect = (float)lastSw / lastSh;
+        gameCam.orthographicSize = Mathf.Max(5f, 8.9f / aspect);
     }
 
     Transform MakeCanvas(string canvasName, int order, bool behindBall)
