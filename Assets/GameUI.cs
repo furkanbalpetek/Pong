@@ -24,6 +24,8 @@ public class GameUI : MonoBehaviour
     GameObject endPanel;
     RectTransform endCard;
 
+    Camera gameCam;
+    int lastSw, lastSh;
     int lastL, lastR;
     float punchL, punchR, showT;
     bool wasOver;
@@ -39,6 +41,11 @@ public class GameUI : MonoBehaviour
             GameObject g = GameObject.Find(n);
             if (g != null) g.SetActive(false);
         }
+
+        // Keep the playfield 16:9 on every screen so paddles are never cropped
+        gameCam = Camera.main != null ? Camera.main : FindAnyObjectByType<Camera>();
+        CreateLetterboxCamera();
+        FitCamera();
 
         // Scoreboard canvas: drawn BEHIND the ball and paddles (above the table)
         boardRoot = MakeCanvas("BoardCanvas", 1, true);
@@ -65,6 +72,8 @@ public class GameUI : MonoBehaviour
 
     void Update()
     {
+        if (Screen.width != lastSw || Screen.height != lastSh) FitCamera();
+
         if (ball == null) return;
 
         if (ball.scoreLeft != lastL)
@@ -99,6 +108,39 @@ public class GameUI : MonoBehaviour
             k = 1f - (1f - k) * (1f - k);
             endCard.localScale = Vector3.one * Mathf.Lerp(0.8f, 1f, k);
         }
+    }
+
+    void CreateLetterboxCamera()
+    {
+        // Black background behind the 16:9 playfield (fills the bars)
+        GameObject go = new GameObject("LetterboxCamera");
+        Camera c = go.AddComponent<Camera>();
+        c.clearFlags = CameraClearFlags.SolidColor;
+        c.backgroundColor = Color.black;
+        c.cullingMask = 0;
+        c.depth = -100f;
+    }
+
+    void FitCamera()
+    {
+        lastSw = Screen.width;
+        lastSh = Screen.height;
+        if (gameCam == null || lastSh == 0) return;
+
+        float target = 16f / 9f;
+        float window = (float)lastSw / lastSh;
+        Rect r;
+        if (window < target)
+        {
+            float h = window / target;
+            r = new Rect(0f, (1f - h) / 2f, 1f, h);
+        }
+        else
+        {
+            float w = target / window;
+            r = new Rect((1f - w) / 2f, 0f, w, 1f);
+        }
+        gameCam.rect = r;
     }
 
     Transform MakeCanvas(string canvasName, int order, bool behindBall)
